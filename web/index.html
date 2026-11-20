@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="app-token" content="__APP_TOKEN__">
+  <title>DupeHunter</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="app.css">
+  <script src="core.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="name">DupeHunter</div><p class="subtitle">Duplicate finder</p></div>
+      <nav aria-label="Sections"><ul class="nav-list" id="nav">
+        <li><button type="button" class="nav-btn active" data-view="scan">Scan</button></li>
+        <li><button type="button" class="nav-btn" data-view="exact">Exact duplicates <span class="count" id="n-exact"></span></button></li>
+        <li><button type="button" class="nav-btn" data-view="similar">Similar photos <span class="count" id="n-similar"></span></button></li>
+        <li><button type="button" class="nav-btn" data-view="safety">Safety &amp; help</button></li>
+      </ul></nav>
+      <div class="settings-block">
+        <label for="theme">Theme</label>
+        <select id="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="green">Green</option><option value="amber">Amber</option><option value="blue">Blue</option><option value="mono">Mono</option></select>
+      </div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <header class="topbar"><h1 id="view-title">Scan</h1><div id="status" class="status" role="status" aria-live="polite"></div></header>
+      <section id="view" class="view">
+
+        <div id="v-scan">
+          <div class="panel">
+            <div class="panel-head"><h2>Where should I look?</h2></div>
+            <div id="roots" class="chips" aria-label="Folders to scan"></div>
+            <p id="roots-empty" class="muted small">No folders chosen yet. Pick a few below, or paste a path.</p>
+            <div class="toolbar">
+              <button type="button" id="btn-browse">Browse…</button>
+              <input type="text" id="path-input" class="grow" placeholder="Paste a folder path, e.g. D:\Photos" aria-label="Folder path">
+              <button type="button" id="btn-add">Add folder</button>
+            </div>
+            <div class="toolbar"><span class="muted small">Quick add:</span><span id="quick" class="chips"></span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Options</h2></div>
+            <div class="row">
+              <label class="check"><input type="checkbox" id="opt-near"> Also find similar photos (resized or re-saved copies)</label>
+              <label class="field"><span>Photo similarity</span><select id="opt-sim"><option value="3">Strict (nearly identical)</option><option value="6">Normal</option><option value="10">Loose (more matches, some false)</option></select></label>
+              <label class="field"><span>Ignore files smaller than</span><select id="opt-min"><option value="1">Nothing (any size)</option><option value="1024">1 KB</option><option value="102400">100 KB</option><option value="1048576">1 MB</option></select></label>
+              <label class="check"><input type="checkbox" id="opt-sys"> Include system folders (Windows, Program Files, AppData)</label>
+            </div>
+            <p id="cap-note" class="notice warn small" hidden></p>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="btn-scan" class="primary">Start scan</button>
+            <button type="button" id="btn-cancel" hidden>Cancel scan</button>
+            <span id="scan-note" class="muted small"></span>
+          </div>
+          <div id="progress-panel" class="panel" hidden>
+            <div class="panel-head"><h2 id="phase">Scanning</h2><span id="phase-detail" class="muted small"></span></div>
+            <div class="bar" aria-hidden="true"><span id="phase-bar"></span></div>
+          </div>
+          <div id="scan-result" class="cards" hidden></div>
+          <details id="skipped-box" hidden><summary id="skipped-sum"></summary><div class="table-wrap"><table class="data compact"><thead><tr><th>Path</th><th>Why it was skipped</th></tr></thead><tbody id="skipped-rows"></tbody></table></div></details>
+        </div>
+
+        <div id="v-results" hidden>
+          <div id="res-cards" class="cards"></div>
+          <div class="toolbar">
+            <span class="muted small">Auto-select (keeps one file per set):</span>
+            <button type="button" data-rule="newest">Keep newest</button>
+            <button type="button" data-rule="oldest">Keep oldest</button>
+            <button type="button" data-rule="largest">Keep largest</button>
+            <button type="button" data-rule="shortest">Keep shortest path</button>
+            <button type="button" id="btn-clear">Clear selection</button>
+          </div>
+          <div class="toolbar">
+            <input type="search" id="filter" placeholder="Filter by path" aria-label="Filter by path">
+            <label class="field row-field"><span class="sr-only">Sort</span><select id="sort" aria-label="Sort sets"><option value="reclaimable">Most space to free</option><option value="size">Largest files</option><option value="count">Most copies</option><option value="name">Name</option></select></label>
+            <span class="spacer"></span>
+            <span id="sel-text" class="muted small">Nothing selected</span>
+            <button type="button" id="btn-delete" class="danger" disabled>Move selected to Recycle Bin…</button>
+            <a class="button" id="btn-export" href="/api/export.csv" download>Export CSV</a>
+          </div>
+          <div id="groups"></div>
+          <div class="toolbar"><button type="button" id="btn-more" hidden>Show more sets</button></div>
+        </div>
+
+        <div id="v-safety" hidden>
+          <div class="panel">
+            <h2>How DupeHunter keeps your files safe</h2>
+            <ul class="help">
+              <li>Nothing is ever deleted permanently. Selected files go to the Windows Recycle Bin, so you can restore them.</li>
+              <li>Nothing is selected for you. The Keep newest / oldest / largest buttons only tick boxes. You still confirm in a dialog before anything moves.</li>
+              <li>DupeHunter will not let you select every copy in a set: one is always kept.</li>
+              <li>Before moving a file it checks that the file has not changed since the scan, and that the copy you keep still exists.</li>
+              <li>Files on network or USB drives are left alone because they usually have no Recycle Bin.</li>
+              <li>Windows, Program Files, ProgramData and AppData are skipped unless you switch that on.</li>
+              <li>Shortcuts, junctions and hard links are not followed or counted as copies.</li>
+              <li>Similar photos are found by comparing a small fingerprint of each picture. Always look at the thumbnails: a crop or a burst shot can look alike but still be different.</li>
+              <li>Everything stays on this PC. The scan list is only kept in memory.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
